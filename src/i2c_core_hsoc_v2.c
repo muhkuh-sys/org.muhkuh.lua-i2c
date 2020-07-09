@@ -2,6 +2,7 @@
 
 #include "netx_io_areas.h"
 #include "systime.h"
+#include "uprintf.h"
 
 
 typedef enum
@@ -72,7 +73,10 @@ static int i2c_core_hsoc_v2_send(int iCond, unsigned int uiAckPoll, unsigned int
 	const unsigned char *pucBufferCnt;
 	const unsigned char *pucBufferEnd;
 	unsigned int uiChunkTransaction;
+	int iResult;
 
+
+	iResult = 0;
 
 	/* Limit ACK poll to valid range. */
 	if( uiAckPoll>(HOSTMSK(i2c_cmd_acpollmax)>>HOSTSRT(i2c_cmd_acpollmax)) )
@@ -84,11 +88,11 @@ static int i2c_core_hsoc_v2_send(int iCond, unsigned int uiAckPoll, unsigned int
 	/* This core can not send start conditions without data. */
 	if( (iCond&I2C_START_COND)!=0 && uiDataLength==0 )
 	{
-		return -1;
+		iResult = -1;
 	}
 
 	/* handle start condition separately */
-	if( (iCond&I2C_START_COND)!=0 )
+	if( iResult==0 && (iCond&I2C_START_COND)!=0 )
 	{
 		/* Get the first data byte and make a proper ID. */
 		ulAddress   = (unsigned long)(iCond & 0x7f);
@@ -107,10 +111,26 @@ static int i2c_core_hsoc_v2_send(int iCond, unsigned int uiAckPoll, unsigned int
 		ulValue |= uiAckPoll << HOSTSRT(i2c_cmd_acpollmax);
 		ptI2cUnit->ulI2c_cmd = ulValue;
 
-		i2c_wait_for_command_done();
+		iResult = i2c_wait_for_command_done();
+		if( iResult!=0 )
+		{
+			uprintf("Failed to execute the start command.\n");
+		}
+		else
+		{
+			/* Was the start condition acknowledged? */
+			ulValue  = ptI2cUnit->ulI2c_sr;
+			ulValue &= HOSTMSK(i2c_sr_last_ac);
+			if( ulValue==0 )
+			{
+				/* No ACK received. */
+				uprintf("No ACK received.\n");
+				iResult = -1;
+			}
+		}
 	}
 
-	if( uiDataLength!=0 )
+	if( iResult==0 && uiDataLength!=0 )
 	{
 		/* Send data. */
 		pucBufferCnt = pucData;
@@ -153,11 +173,27 @@ static int i2c_core_hsoc_v2_send(int iCond, unsigned int uiAckPoll, unsigned int
 
 		uiDataLength -= uiChunkTransaction;
 
-		i2c_wait_for_command_done();
+		iResult = i2c_wait_for_command_done();
+		if( iResult!=0 )
+		{
+			uprintf("Failed to execute the start command.\n");
+		}
+		else
+		{
+			/* Was the start condition acknowledged? */
+			ulValue  = ptI2cUnit->ulI2c_sr;
+			ulValue &= HOSTMSK(i2c_sr_last_ac);
+			if( ulValue==0 )
+			{
+				/* No ACK received. */
+				uprintf("No ACK received.\n");
+				iResult = -1;
+			}
+		}
 	}
 
 	/* Send a stop condition? */
-	if( (iCond&I2C_STOP_COND)!=0 )
+	if( iResult==0 && (iCond&I2C_STOP_COND)!=0 )
 	{
 		/* Execute stop condition. */
 		ulValue  = 1 << HOSTSRT(i2c_cmd_nwr);
@@ -166,21 +202,27 @@ static int i2c_core_hsoc_v2_send(int iCond, unsigned int uiAckPoll, unsigned int
 		ulValue |= 0 << HOSTSRT(i2c_cmd_acpollmax);
 		ptI2cUnit->ulI2c_cmd = ulValue;
 
-		i2c_wait_for_command_done();
+		iResult = i2c_wait_for_command_done();
+		if( iResult!=0 )
+		{
+			uprintf("Failed to execute the start command.\n");
+		}
 	}
 
-	return 0;
+	return iResult;
 }
 
 
 static int i2c_core_hsoc_v2_recv(int iCond, unsigned int uiAckPoll, unsigned int uiDataLength, unsigned char *pucData)
 {
+	int iResult;
 	unsigned long ulAddress;
 	unsigned long ulValue;
-	int iResult;
 	unsigned long ulChunkTransaction;
 	unsigned long ulChunkFifo;
 
+
+	iResult = 0;
 
 	/* Limit ACK poll to valid range. */
 	if( uiAckPoll>(HOSTMSK(i2c_cmd_acpollmax)>>HOSTSRT(i2c_cmd_acpollmax)) )
@@ -215,10 +257,26 @@ static int i2c_core_hsoc_v2_recv(int iCond, unsigned int uiAckPoll, unsigned int
 			ulValue |= uiAckPoll << HOSTSRT(i2c_cmd_acpollmax);
 			ptI2cUnit->ulI2c_cmd = ulValue;
 
-			i2c_wait_for_command_done();
+			iResult = i2c_wait_for_command_done();
+			if( iResult!=0 )
+			{
+				uprintf("Failed to execute the start command.\n");
+			}
+			else
+			{
+				/* Was the start condition acknowledged? */
+				ulValue  = ptI2cUnit->ulI2c_sr;
+				ulValue &= HOSTMSK(i2c_sr_last_ac);
+				if( ulValue==0 )
+				{
+					/* No ACK received. */
+					uprintf("No ACK received 1.\n");
+					iResult = -1;
+				}
+			}
 		}
 
-		if( uiDataLength!=0 )
+		if( iResult==0 && uiDataLength!=0 )
 		{
 			while( uiDataLength!=0 )
 			{
@@ -276,12 +334,17 @@ static int i2c_core_hsoc_v2_recv(int iCond, unsigned int uiAckPoll, unsigned int
 					}
 				} while( ulChunkTransaction!=0 );
 
-				i2c_wait_for_command_done();
+				iResult = i2c_wait_for_command_done();
+				if( iResult!=0 )
+				{
+					uprintf("Failed to execute the start command.\n");
+					break;
+				}
 			}
 		}
 
 		/* Send a stop condition? */
-		if( (iCond&I2C_STOP_COND)!=0 )
+		if( iResult==0 && (iCond&I2C_STOP_COND)!=0 )
 		{
 			/* Execute stop condition. */
 			ulValue  = 1 << HOSTSRT(i2c_cmd_nwr);
@@ -290,10 +353,12 @@ static int i2c_core_hsoc_v2_recv(int iCond, unsigned int uiAckPoll, unsigned int
 			ulValue |= 0 << HOSTSRT(i2c_cmd_acpollmax);
 			ptI2cUnit->ulI2c_cmd = ulValue;
 
-			i2c_wait_for_command_done();
+			iResult = i2c_wait_for_command_done();
+			if( iResult!=0 )
+			{
+				uprintf("Failed to execute the start command.\n");
+			}
 		}
-
-		iResult = 0;
 	}
 
 	return iResult;
