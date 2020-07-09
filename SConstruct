@@ -75,6 +75,7 @@ sources_common = """
     src/i2c_core_hsoc_v2.c
     src/init.S
     src/main_test.c
+    src/portcontrol.c
 """
 
 aCppPath = ['src', '#platform/src', '#platform/src/lib', '#targets/version']

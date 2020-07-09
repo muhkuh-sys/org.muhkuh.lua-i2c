@@ -1,6 +1,7 @@
 #include "i2c_core_hsoc_v2.h"
 
 #include "netx_io_areas.h"
+#include "portcontrol.h"
 #include "systime.h"
 #include "uprintf.h"
 
@@ -36,6 +37,31 @@ HOSTADEF(I2C) * ptI2cUnit;
 
 
 /*-----------------------------------*/
+
+
+static const unsigned char aucMmioFunctions_netx4000_I2C0[2] =
+{
+	HOSTMMIO(I2C0_SCL),
+	HOSTMMIO(I2C0_SDA)
+};
+
+
+static const unsigned char aucMmioFunctions_netx4000_I2C1[2] =
+{
+	HOSTMMIO(I2C1_SCL),
+	HOSTMMIO(I2C1_SDA)
+};
+
+
+static const unsigned char aucMmioFunctions_netx4000_I2C2[2] =
+{
+	HOSTMMIO(I2C2_SCL),
+	HOSTMMIO(I2C2_SDA)
+};
+
+
+/*-----------------------------------*/
+
 
 static int i2c_wait_for_command_done(void)
 {
@@ -391,6 +417,30 @@ static int i2c_core_hsoc_v2_set_device_specific_speed(unsigned long ulDeviceSpec
 
 
 
+static void mmio_apply(const unsigned char *pucMmioIndex, const unsigned char *pucMmioFunction, unsigned int sizPins)
+{
+	HOSTDEF(ptAsicCtrlArea);
+	HOSTDEF(ptMmioCtrlArea);
+	unsigned char ucMmioIndex;
+	unsigned char ucMmioFunction;
+	unsigned int uiCnt;
+
+
+	for(uiCnt=0; uiCnt<sizPins; uiCnt++)
+	{
+		ucMmioIndex = pucMmioIndex[uiCnt];
+		ucMmioFunction = pucMmioFunction[uiCnt];
+
+		if( ucMmioIndex!=0xff )
+		{
+			ptAsicCtrlArea->ulAsic_ctrl_access_key = ptAsicCtrlArea->ulAsic_ctrl_access_key;  /* @suppress("Assignment to itself") */
+			ptMmioCtrlArea->aulMmio_cfg[ucMmioIndex] = ucMmioFunction;
+		}
+	}
+}
+
+
+
 static const I2C_FUNCTIONS_T i2c_core_functions =
 {
 	.fnSend                     = i2c_core_hsoc_v2_send,
@@ -399,7 +449,7 @@ static const I2C_FUNCTIONS_T i2c_core_functions =
 };
 
 
-const I2C_FUNCTIONS_T *i2c_core_hsoc_v2_init(unsigned int uiCoreIdx)
+const I2C_FUNCTIONS_T *i2c_core_hsoc_v2_init(I2C_SETUP_T *ptI2CSetup)
 {
 	HOSTDEF(ptRAPI2C0Area);
 	HOSTDEF(ptRAPI2C1Area);
@@ -412,52 +462,75 @@ const I2C_FUNCTIONS_T *i2c_core_hsoc_v2_init(unsigned int uiCoreIdx)
 	HOSTDEF(ptI2c2Area);
 	unsigned long ulValue;
 	HOSTADEF(I2C) * ptUnit;
+	const unsigned char *pucMmioFunctions;
 	const I2C_FUNCTIONS_T *ptFn;
 
 
-	ptUnit = NULL;
 	ptFn = NULL;
 
-	if( uiCoreIdx==0 )
+	ptUnit = NULL;
+	pucMmioFunctions = NULL;
+	switch(ptI2CSetup->tI2CCore)
 	{
+	case I2C_SETUP_CORE_RAPI2C0:
 		ptUnit = ptRAPI2C0Area;
-	}
-	else if( uiCoreIdx==1 )
-	{
+		pucMmioFunctions = NULL;
+		break;
+
+	case I2C_SETUP_CORE_RAPI2C1:
 		ptUnit = ptRAPI2C1Area;
-	}
-	else if( uiCoreIdx==2 )
-	{
+		pucMmioFunctions = NULL;
+		break;
+
+	case I2C_SETUP_CORE_RAPI2C2:
 		ptUnit = ptRAPI2C2Area;
-	}
-	else if( uiCoreIdx==3 )
-	{
+		pucMmioFunctions = NULL;
+		break;
+
+	case I2C_SETUP_CORE_RAPI2C3:
 		ptUnit = ptRAPI2C3Area;
-	}
-	else if( uiCoreIdx==4 )
-	{
+		pucMmioFunctions = NULL;
+		break;
+
+	case I2C_SETUP_CORE_RAPI2C4:
 		ptUnit = ptRAPI2C4Area;
-	}
-	else if( uiCoreIdx==5 )
-	{
+		pucMmioFunctions = NULL;
+		break;
+
+	case I2C_SETUP_CORE_RAPI2C5:
 		ptUnit = ptRAPI2C5Area;
-	}
-	else if( uiCoreIdx==6 )
-	{
+		pucMmioFunctions = NULL;
+		break;
+
+	case I2C_SETUP_CORE_I2C0:
 		ptUnit = ptI2c0Area;
-	}
-	else if( uiCoreIdx==7 )
-	{
+		pucMmioFunctions = aucMmioFunctions_netx4000_I2C0;
+		break;
+
+	case I2C_SETUP_CORE_I2C1:
 		ptUnit = ptI2c1Area;
-	}
-	else if( uiCoreIdx==8 )
-	{
+		pucMmioFunctions = aucMmioFunctions_netx4000_I2C1;
+		break;
+
+	case I2C_SETUP_CORE_I2C2:
 		ptUnit = ptI2c2Area;
+		pucMmioFunctions = aucMmioFunctions_netx4000_I2C2;
+		break;
 	}
 
 	if( ptUnit!=NULL )
 	{
+		/* TODO: Do not use a global here. Provide storage space to this function. */
 		ptI2cUnit = ptUnit;
+
+		/* Configure the port control unit. */
+		portcontrol_apply_mmio(ptI2CSetup->aucMmioIndex, ptI2CSetup->ausPortControl, 2);
+
+		/* Set the MMIO functions. */
+		if( pucMmioFunctions!=NULL )
+		{
+			mmio_apply(ptI2CSetup->aucMmioIndex, pucMmioFunctions, 2);
+		}
 
 		/* Reset the unit. */
 		ulValue = HOSTMSK(i2c_mcr_rst_i2c);

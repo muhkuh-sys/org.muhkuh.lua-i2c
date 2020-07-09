@@ -15,6 +15,7 @@ typedef enum
 
 typedef int (*PFN_I2C_SEND_T)(int iCond, unsigned int uiAckPoll, unsigned int uiDataLength, const unsigned char *pucData);
 typedef int (*PFN_I2C_RECV_T)(int iCond, unsigned int uiAckPoll, unsigned int uiDataLength, unsigned char *pucData);
+/* TODO: Add a function to convert a clock speed in kHz to a device specific value. */
 typedef int (*PFN_I2C_SET_DEVICE_SPECIFIC_SPEED_T)(unsigned long ulDeviceSpecificValue);
 
 typedef struct

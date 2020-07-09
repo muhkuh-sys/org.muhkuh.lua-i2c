@@ -24,6 +24,7 @@
 #include <string.h>
 
 #include "netx_io_areas.h"
+#include "portcontrol.h"
 #include "rdy_run.h"
 #include "systime.h"
 #include "uprintf.h"
@@ -392,10 +393,9 @@ TEST_RESULT_T test(I2C_PARAMETER_T *ptTestParams)
 	TEST_RESULT_T tResult;
 	int iResult;
 	unsigned long ulVerbose;
-	unsigned int uiCoreIdx;
 	const I2C_FUNCTIONS_T *ptI2CFn;
+	I2C_SETUP_T tI2CSetup;
 	I2C_CMD_T tCmd;
-
 
 	systime_init();
 
@@ -412,9 +412,15 @@ TEST_RESULT_T test(I2C_PARAMETER_T *ptTestParams)
 	}
 
 	tResult = TEST_RESULT_OK;
-	uiCoreIdx = 0U;
 
-	ptI2CFn = i2c_core_hsoc_v2_init(uiCoreIdx);
+	/* Settings for the RTC clock. */
+	tI2CSetup.tI2CCore = I2C_SETUP_CORE_I2C0;
+	tI2CSetup.aucMmioIndex[0] = 24;    // SCL
+	tI2CSetup.aucMmioIndex[1] = 25;    // SDA
+	tI2CSetup.ausPortControl[0] = PORTCONTROL_CONFIGURATION(REEMUX_0, 0, REEMUX_DRV_04MA, REEMUX_UDC_PULLUP50K);   // SCL
+	tI2CSetup.ausPortControl[1] = PORTCONTROL_CONFIGURATION(REEMUX_0, 0, REEMUX_DRV_04MA, REEMUX_UDC_PULLUP50K);   // SDA
+
+	ptI2CFn = i2c_core_hsoc_v2_init(&tI2CSetup);
 	if( ptI2CFn==NULL )
 	{
 		uprintf("Failed to setup the I2C core.\n");
