@@ -1,5 +1,5 @@
 /***************************************************************************
- *   Copyright (C) 2019 by Christoph Thelen                                *
+ *   Copyright (C) 2013 by Christoph Thelen                                *
  *   doc_bacardi@users.sourceforge.net                                     *
  *                                                                         *
  *   This program is free software; you can redistribute it and/or modify  *
@@ -18,15 +18,30 @@
  *   59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.             *
  ***************************************************************************/
 
-#include "i2c_core_hsoc_v2.h"
-#include "interface.h"
+
+#ifndef __HEADER_H__
+#define __HEADER_H__
 
 
-#ifndef __MAIN_TEST_H__
-#define __MAIN_TEST_H__
+typedef unsigned long (*PFN_START)(unsigned long ulParameter);
+
+typedef struct VERSION_HEADER_STRUCT
+{
+	char acMagic[4];
+	unsigned long ulVersion;
+
+	unsigned long *pulLoadAddress;
+	PFN_START pfnExecutionAddress;
+	unsigned long *pulParameterStart;
+	unsigned long *pulParameterEnd;
+
+	unsigned long ulVersionMajor;
+	unsigned long ulVersionMinor;
+	unsigned long ulVersionMicro;
+	const char    acVersionVcs[16];
+} VERSION_HEADER_T;
+
+extern const VERSION_HEADER_T tVersionHeader __attribute__ ((section (".header")));
 
 
-TEST_RESULT_T test(I2C_PARAMETER_T *ptTestParams);
-
-
-#endif  /* __MAIN_TEST_H__ */
+#endif  /* __HEADER_H__ */

@@ -1,5 +1,5 @@
 /***************************************************************************
- *   Copyright (C) 2019 by Christoph Thelen                                *
+ *   Copyright (C) 2013 by Christoph Thelen                                *
  *   doc_bacardi@users.sourceforge.net                                     *
  *                                                                         *
  *   This program is free software; you can redistribute it and/or modify  *
@@ -18,15 +18,30 @@
  *   59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.             *
  ***************************************************************************/
 
-#include "i2c_core_hsoc_v2.h"
-#include "interface.h"
+
+#include "header.h"
+#include "version.h"
 
 
-#ifndef __MAIN_TEST_H__
-#define __MAIN_TEST_H__
+extern unsigned long load_address[];
+unsigned long start(unsigned long ulParameter);
+extern unsigned long parameter_start_address[];
+extern unsigned long parameter_end_address[];
 
 
-TEST_RESULT_T test(I2C_PARAMETER_T *ptTestParams);
+const VERSION_HEADER_T tVersionHeader =
+{
+	.acMagic = { 'm', 'o', 'o', 'h' },
+	.ulVersion = 0x00010001,
 
+	.pulLoadAddress = load_address,
+	.pfnExecutionAddress = start,
+	.pulParameterStart = parameter_start_address,
+	.pulParameterEnd = parameter_end_address,
 
-#endif  /* __MAIN_TEST_H__ */
+	.ulVersionMajor = VERSION_MAJOR,
+	.ulVersionMinor = VERSION_MINOR,
+	.ulVersionMicro = VERSION_MICRO,
+	.acVersionVcs = VERSION_VCS
+};
+

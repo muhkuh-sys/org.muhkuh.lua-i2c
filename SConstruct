@@ -71,6 +71,7 @@ atEnv.DEFAULT.Version('targets/version/version.h', 'templates/version.h')
 #
 
 sources_common = """
+    src/header.c
     src/i2c_core_hsoc_v2.c
     src/init.S
     src/main_test.c
@@ -86,6 +87,7 @@ elf_netx4000_t = env_netx4000_t.Elf('targets/netx4000/i2c_netx4000.elf', src_net
 I2C_NETX4000 = env_netx4000_t.ObjCopy('targets/netx4000/i2c_netx4000.bin', elf_netx4000_t)
 txt_netx4000_t = env_netx4000_t.ObjDump('targets/netx4000/i2c_netx4000.txt', elf_netx4000_t, OBJDUMP_FLAGS=['--disassemble', '--source', '--all-headers', '--wide'])
 
+LUA_MODULE = atEnv.NETX4000.GccSymbolTemplate('targets/lua/i2c_netx.lua', elf_netx4000_t, GCCSYMBOLTEMPLATE_TEMPLATE=File('templates/i2c_netx.lua'))
 
 """
 # ----------------------------------------------------------------------------
@@ -161,25 +163,15 @@ tConfiguration0Hash = atEnv.DEFAULT.Hash('%s.hash' % tConfiguration0[0].get_path
 tArtifact0Pom = atEnv.DEFAULT.ArtifactVersion(os.path.join(strModulePath, '%s-%s.pom' % (strArtifact0, PROJECT_VERSION)), 'installer/jonchki/lua5.1/pom.xml')
 """
 
-"""
+
 #----------------------------------------------------------------------------
 #
 # Make a local demo installation.
 #
 # Copy all binary binaries.
 atFiles = {
-    'targets/testbench/netx/eth_netx90_mpw.bin':  ETH_NETX90_MPW,
-    'targets/testbench/netx/eth_netx90.bin':      ETH_NETX90,
-    'targets/testbench/netx/eth_netx4000.bin':    ETH_NETX4000
-
-    # Copy all LUA scripts.
-#    'targets/testbench/lua/io_matrix.lua':             'iomatrix/templates/io_matrix.lua',
-#    'targets/testbench/lua/io_matrix/ftdi_2232h.lua':  'iomatrix/templates/io_matrix/ftdi_2232h.lua',
-#    'targets/testbench/lua/io_matrix/ftdi.lua':        'iomatrix/templates/io_matrix/ftdi.lua',
-#    'targets/testbench/lua/io_matrix/netx90_mpw.lua':  LUA_NETX90_MPW,
-#    'targets/testbench/lua/io_matrix/netx_base.lua':   LUA_NETX_BASE,
-#    'targets/testbench/lua/io_matrix/netx.lua':        'iomatrix/templates/io_matrix/netx.lua'
+    'targets/testbench/netx/i2c_netx4000.bin':    I2C_NETX4000,
+    'targets/testbench/lua/i2c_netx.lua':         LUA_MODULE
 }
 for tDst, tSrc in atFiles.iteritems():
     Command(tDst, tSrc, Copy("$TARGET", "$SOURCE"))
-"""
