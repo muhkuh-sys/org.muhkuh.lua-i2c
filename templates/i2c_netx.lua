@@ -138,7 +138,7 @@ end
 
 
 
-function I2CNetx:parseNumber(strNumber)
+function I2CNetx:__parseNumber(strNumber)
   local tResult
   if string.sub(strNumber, 1, 2)=='0b' then
     tResult = 0
@@ -223,8 +223,8 @@ function I2CNetx:parseI2cMacro(strMacro)
         local tCmd = {
           cmd = 'read',
           conditions = {},
-          address = self:parseNumber(tRawCommand.address),
-          length = self:parseNumber(tRawCommand.length)
+          address = self:__parseNumber(tRawCommand.address),
+          length = self:__parseNumber(tRawCommand.length)
         }
         -- Was the last command a "start" command?
         if tCommandStack~=nil and tCommandStack.cmd=='start' then
@@ -232,7 +232,7 @@ function I2CNetx:parseI2cMacro(strMacro)
         end
         -- Add the optional retries.
         local strRetries = tRawCommand.retries or self.ucDefaultRetries
-        tCmd.retries = self:parseNumber(strRetries)
+        tCmd.retries = self:__parseNumber(strRetries)
 
         table.insert(atCmdMerged, tCmd)
         tCommandStack = tCmd
@@ -241,7 +241,7 @@ function I2CNetx:parseI2cMacro(strMacro)
         local tCmd = {
           cmd = 'write',
           conditions = {},
-          address = self:parseNumber(tRawCommand.address),
+          address = self:__parseNumber(tRawCommand.address),
           data = nil
         }
         -- Was the last command a "start" command?
@@ -250,7 +250,7 @@ function I2CNetx:parseI2cMacro(strMacro)
         end
         -- Add the optional retries.
         local strRetries = tRawCommand.retries or self.ucDefaultRetries
-        tCmd.retries = self:parseNumber(strRetries)
+        tCmd.retries = self:__parseNumber(strRetries)
         -- Collect the data.
         local astrData = {}
         local astrReplace = {
@@ -272,7 +272,7 @@ function I2CNetx:parseI2cMacro(strMacro)
             strData = string.gsub(strData, '(\\["\'abfnrtv])', astrReplace)
             table.insert(astrData, strData)
           else
-            local uiData = self:parseNumber(strData)
+            local uiData = self:__parseNumber(strData)
             if uiData<0 or uiData>255 then
               tLog.error('Data element %d of command %d exceeds the 8 bit range: %d.', uiData, uiCommandCnt, tData)
               error('Invalid data.')
@@ -288,7 +288,7 @@ function I2CNetx:parseI2cMacro(strMacro)
         -- Create a new delay command.
         local tCmd = {
           cmd = 'delay',
-          delay = self:parseNumber(tRawCommand.delay)
+          delay = self:__parseNumber(tRawCommand.delay)
         }
         table.insert(atCmdMerged, tCmd)
         tCommandStack = tCmd
