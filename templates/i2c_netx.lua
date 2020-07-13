@@ -380,6 +380,10 @@ end
 
 
 function I2CNetx:openDevice(tHandle, tCoreID, ucMMIO_SCL, ucMMIO_SDA, usPortcontrol_SCL, usPortcontrol_SDA)
+  ucMMIO_SCL = ucMMIO_SCL or 0xff
+  ucMMIO_SDA = ucMMIO_SDA or 0xff
+  usPortcontrol_SCL = usPortcontrol_SCL or 0xffff
+  usPortcontrol_SDA = usPortcontrol_SDA or 0xffff
   local tLog = self.tLog
   local tester = _G.tester
   local aAttr = tHandle.attr
