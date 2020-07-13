@@ -126,13 +126,13 @@ tDoc = atEnv.DEFAULT.Asciidoc(
 )
 """
 
-"""
+
 #----------------------------------------------------------------------------
 #
 # Build the artifacts.
 #
-strGroup = 'org.muhkuh.tests'
-strModule = 'eth'
+strGroup = 'org.muhkuh.lua'
+strModule = 'i2c'
 
 # Split the group by dots.
 aGroup = strGroup.split('.')
@@ -140,29 +140,23 @@ aGroup = strGroup.split('.')
 strModulePath = 'targets/jonchki/repository/%s/%s/%s' % ('/'.join(aGroup), strModule, PROJECT_VERSION)
 
 # Set the name of the artifact.
-strArtifact0 = 'lua5.1-eth'
+strArtifact0 = 'i2c'
 
 tArcList0 = atEnv.DEFAULT.ArchiveList('zip')
 tArcList0.AddFiles('netx/',
-    ETH_NETX90_MPW,
-    ETH_NETX90,
-    ETH_NETX4000)
+    I2C_NETX4000)
 tArcList0.AddFiles('lua/',
-    'eth/lua/test_class_eth.lua')
-tArcList0.AddFiles('templates',
-    'eth/lua/test.lua')
+    LUA_MODULE)
 #tArcList0.AddFiles('doc/',
 #    tDoc)
 tArcList0.AddFiles('',
-    'installer/jonchki/lua5.1/install.lua',
-    'installer/jonchki/lua5.1/install_testcase.lua')
+    'installer/jonchki/install.lua')
 
 tArtifact0 = atEnv.DEFAULT.Archive(os.path.join(strModulePath, '%s-%s.zip' % (strArtifact0, PROJECT_VERSION)), None, ARCHIVE_CONTENTS = tArcList0)
 tArtifact0Hash = atEnv.DEFAULT.Hash('%s.hash' % tArtifact0[0].get_path(), tArtifact0[0].get_path(), HASH_ALGORITHM='md5,sha1,sha224,sha256,sha384,sha512', HASH_TEMPLATE='${ID_UC}:${HASH}\n')
-tConfiguration0 = atEnv.DEFAULT.Version(os.path.join(strModulePath, '%s-%s.xml' % (strArtifact0, PROJECT_VERSION)), 'installer/jonchki/lua5.1/%s.xml' % strModule)
+tConfiguration0 = atEnv.DEFAULT.Version(os.path.join(strModulePath, '%s-%s.xml' % (strArtifact0, PROJECT_VERSION)), 'installer/jonchki/%s.xml' % strModule)
 tConfiguration0Hash = atEnv.DEFAULT.Hash('%s.hash' % tConfiguration0[0].get_path(), tConfiguration0[0].get_path(), HASH_ALGORITHM='md5,sha1,sha224,sha256,sha384,sha512', HASH_TEMPLATE='${ID_UC}:${HASH}\n')
-tArtifact0Pom = atEnv.DEFAULT.ArtifactVersion(os.path.join(strModulePath, '%s-%s.pom' % (strArtifact0, PROJECT_VERSION)), 'installer/jonchki/lua5.1/pom.xml')
-"""
+tArtifact0Pom = atEnv.DEFAULT.ArtifactVersion(os.path.join(strModulePath, '%s-%s.pom' % (strArtifact0, PROJECT_VERSION)), 'installer/jonchki/pom.xml')
 
 
 #----------------------------------------------------------------------------
