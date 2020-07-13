@@ -137,7 +137,7 @@ static int command_read(CMD_STATE_T *ptState, const I2C_FUNCTIONS_T *ptI2CFn)
 				{
 					uprintf("CONTINUE\n");
 				}
-				uprintf("I2C_COMMAND_Read 0x%02x, %d, %d\n", ptCmd->s.ucAddress, uiAckPoll, ulDataSize);
+				uprintf("READ from address 0x%02x, %d retries, %d bytes\n", ptCmd->s.ucAddress, uiAckPoll, ulDataSize);
 			}
 
 			/* Run the command. */
@@ -233,7 +233,7 @@ static int command_write(CMD_STATE_T *ptState, const I2C_FUNCTIONS_T *ptI2CFn)
 				{
 					uprintf("CONTINUE\n");
 				}
-				uprintf("I2C_COMMAND_Write 0x%02x, %d, %d\n", ptCmd->s.ucAddress, uiAckPoll, ulDataSize);
+				uprintf("WRITE to address 0x%02x, %d retries, %d bytes\n", ptCmd->s.ucAddress, uiAckPoll, ulDataSize);
 				hexdump(ptState->pucCmdCnt + sizeof(I2C_SEQ_COMMAND_RW_T), ulDataSize);
 			}
 
