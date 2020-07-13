@@ -3,9 +3,9 @@ local I2CNetx = class()
 
 
 function I2CNetx:_init(tLog)
-  self.I2C_CMD_InitializeController = ${I2C_CMD_InitializeController}
+  self.I2C_CMD_Open = ${I2C_CMD_Open}
   self.I2C_CMD_RunSequence = ${I2C_CMD_RunSequence}
-  self.I2C_CMD_DeactivateController = ${I2C_CMD_DeactivateController}
+  self.I2C_CMD_Close = ${I2C_CMD_Close}
 
   self.I2C_SEQ_COMMAND_Read = ${I2C_SEQ_COMMAND_Read}
   self.I2C_SEQ_COMMAND_Write = ${I2C_SEQ_COMMAND_Write}

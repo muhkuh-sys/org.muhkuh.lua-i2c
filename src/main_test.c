@@ -432,9 +432,9 @@ TEST_RESULT_T test(I2C_PARAMETER_T *ptTestParams)
 		tResult = TEST_RESULT_ERROR;
 		switch(tCmd)
 		{
-		case I2C_CMD_InitializeController:
+		case I2C_CMD_Open:
 		case I2C_CMD_RunSequence:
-		case I2C_CMD_DeactivateController:
+		case I2C_CMD_Close:
 			tResult = TEST_RESULT_OK;
 			break;
 		}
@@ -446,7 +446,7 @@ TEST_RESULT_T test(I2C_PARAMETER_T *ptTestParams)
 		{
 			switch(tCmd)
 			{
-			case I2C_CMD_InitializeController:
+			case I2C_CMD_Open:
 				uprintf("Not yet.\n");
 				tResult = TEST_RESULT_ERROR;
 				break;
@@ -459,7 +459,7 @@ TEST_RESULT_T test(I2C_PARAMETER_T *ptTestParams)
 				}
 				break;
 
-			case I2C_CMD_DeactivateController:
+			case I2C_CMD_Close:
 				uprintf("Not yet.\n");
 				tResult = TEST_RESULT_ERROR;
 				break;

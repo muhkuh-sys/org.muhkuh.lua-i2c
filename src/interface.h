@@ -7,9 +7,9 @@
 
 typedef enum I2C_CMD_ENUM
 {
-	I2C_CMD_InitializeController = 0,
+	I2C_CMD_Open = 0,
 	I2C_CMD_RunSequence = 1,
-	I2C_CMD_DeactivateController = 2
+	I2C_CMD_Close = 2
 } I2C_CMD_T;
 
 
@@ -33,6 +33,18 @@ typedef enum I2C_SEQ_CONDITION_ENUM
 
 
 
+typedef struct I2C_PARAMETER_OPEN_STRUCT
+{
+	uint32_t ptHandle;
+	uint16_t usI2CCore;
+	uint8_t ucMMIOIndexSCL;
+	uint8_t ucMMIOIndexSDA;
+	uint16_t usPortcontrolSCL;
+	uint16_t usPortcontrolSDA;
+} I2C_PARAMETER_OPEN_T;
+
+
+
 typedef struct I2C_PARAMETER_RUN_SEQUENCE_STRUCT
 {
 	const uint8_t *pucCommand;
@@ -49,6 +61,7 @@ typedef struct I2C_PARAMETER_STRUCT
 	uint32_t ulVerbose;
 	uint32_t ulCommand;
 	union {
+		I2C_PARAMETER_OPEN_T tOpen;
 		I2C_PARAMETER_RUN_SEQUENCE_T tRunSequence;
 	} uParameter;
 } I2C_PARAMETER_T;
