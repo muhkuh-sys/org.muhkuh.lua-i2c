@@ -16,6 +16,16 @@ function I2CNetx:_init(tLog)
   self.I2C_SEQ_CONDITION_Stop = ${I2C_SEQ_CONDITION_Stop}
   self.I2C_SEQ_CONDITION_Continue = ${I2C_SEQ_CONDITION_Continue}
 
+  self.I2C_SETUP_CORE_RAPI2C0 = ${I2C_SETUP_CORE_RAPI2C0}
+  self.I2C_SETUP_CORE_RAPI2C1 = ${I2C_SETUP_CORE_RAPI2C1}
+  self.I2C_SETUP_CORE_RAPI2C2 = ${I2C_SETUP_CORE_RAPI2C2}
+  self.I2C_SETUP_CORE_RAPI2C3 = ${I2C_SETUP_CORE_RAPI2C3}
+  self.I2C_SETUP_CORE_RAPI2C4 = ${I2C_SETUP_CORE_RAPI2C4}
+  self.I2C_SETUP_CORE_RAPI2C5 = ${I2C_SETUP_CORE_RAPI2C5}
+  self.I2C_SETUP_CORE_I2C0 = ${I2C_SETUP_CORE_I2C0}
+  self.I2C_SETUP_CORE_I2C1 = ${I2C_SETUP_CORE_I2C1}
+  self.I2C_SETUP_CORE_I2C2 = ${I2C_SETUP_CORE_I2C2}
+
   self.I2C_HANDLE_SIZE = ${SIZEOF_I2C_HANDLE_STRUCT}
 
   self.romloader = require 'romloader'
@@ -132,19 +142,10 @@ function I2CNetx:initialize(tPlugin)
   tester:mbin_debug(aAttr)
   tester:mbin_write(tPlugin, aAttr)
 
-  local tHandle = {
+  return {
     plugin = tPlugin,
     attr = aAttr
   }
-
-  -- Setup a basic layout of the buffer:
-  --   * Parameter (fixed size: 64 bytes)
-  --   * Handle (fixed size: I2C_HANDLE_SIZE bytes)
-  --   * RX/TX buffer
-  tHandle.ulHandleAddress = aAttr.ulParameterStartAddress + 64
-  tHandle.ulBufferAddress = aAttr.ulParameterStartAddress + 64 + self.I2C_HANDLE_SIZE
-
-  return tHandle
 end
 
 
@@ -186,6 +187,28 @@ function I2CNetx:__combineConditions(atConditions)
     ucConditions = ucConditions + ucCondition
   end
   return ucConditions
+end
+
+
+
+function I2CNetx:__uint16_to_bytes(usData)
+  local ucB1 = math.floor(usData/256)
+  local ucB0 = usData - 256*ucB1
+
+  return ucB0, ucB1
+end
+
+
+
+function I2CNetx:__uint32_to_bytes(ulData)
+  local ucB3 = math.floor(ulData/0x01000000)
+  ulData = ulData - 0x01000000*ucB3
+  local ucB2 = math.floor(ulData/0x00010000)
+  ulData = ulData - 0x00010000*ucB2
+  local ucB1 = math.floor(ulData/0x00000100)
+  local ucB0 = ulData - 0x00000100*ucB1
+
+  return ucB0, ucB1, ucB2, ucB3
 end
 
 
@@ -312,34 +335,35 @@ function I2CNetx:parseI2cMacro(strMacro)
     local astrMacro = {}
     for _, tCmd in ipairs(atCmdMerged) do
       if tCmd.cmd=='read' then
-        local ucConditions = self:__combineConditions(tCmd.conditions)
-
         local usLen = tCmd.length
         uiExpectedReadData = uiExpectedReadData + usLen
-        local ucHi = math.floor(usLen/256)
-        local ucLo = usLen - 256*ucHi
 
-        table.insert(astrMacro, string.char(self.I2C_SEQ_COMMAND_Read, ucConditions, tCmd.address, tCmd.retries, ucLo, ucHi))
+        local ucLen0, ucLen1 = self:__uint16_to_bytes(usLen)
+        table.insert(astrMacro, string.char(
+          self.I2C_SEQ_COMMAND_Read,
+          self:__combineConditions(tCmd.conditions),
+          tCmd.address,
+          tCmd.retries,
+          ucLen0, ucLen1
+        ))
 
       elseif tCmd.cmd=='write' then
-        local ucConditions = self:__combineConditions(tCmd.conditions)
-
-        local usLen = string.len(tCmd.data)
-        local ucB1 = math.floor(usLen/0x0100)
-        local ucB0 = usLen - 0x0100*ucB1
-
-        table.insert(astrMacro, string.char(self.I2C_SEQ_COMMAND_Write, ucConditions, tCmd.address, tCmd.retries, ucB0, ucB1))
+        local ucLen0, ucLen1 = self:__uint16_to_bytes(string.len(tCmd.data))
+        table.insert(astrMacro, string.char(
+          self.I2C_SEQ_COMMAND_Write,
+          self:__combineConditions(tCmd.conditions),
+          tCmd.address,
+          tCmd.retries,
+          ucLen0, ucLen1
+        ))
         table.insert(astrMacro, tCmd.data)
 
       elseif tCmd.cmd=='delay' then
-        local ulDelay = tCmd.delay
-        local ucB3 = math.floor(ulDelay/0x01000000)
-        ulDelay = ulDelay - 0x01000000*ucB3
-        local ucB2 = math.floor(ulDelay/0x00010000)
-        ulDelay = ulDelay - 0x00010000*ucB2
-        local ucB1 = math.floor(ulDelay/0x00000100)
-        local ucB0 = ulDelay - 0x00000100*ucB1
-        table.insert(astrMacro, string.char(self.I2C_SEQ_COMMAND_Delay, ucB0, ucB1, ucB2, ucB3))
+        local ucDelay0, ucDelay1, ucDelay2, ucDelay3 = self:__uint32_to_bytes(tCmd.delay)
+        table.insert(astrMacro, string.char(
+          self.I2C_SEQ_COMMAND_Delay,
+          ucDelay0, ucDelay1, ucDelay2, ucDelay3
+        ))
 
       else
         tLog.error('Unknown command: "%s".', tCmd.cmd)
@@ -352,6 +376,55 @@ function I2CNetx:parseI2cMacro(strMacro)
 
   return tResult, uiExpectedReadData
 end
+
+
+
+function I2CNetx:openDevice(tHandle, tCoreID, ucMMIO_SCL, ucMMIO_SDA, usPortcontrol_SCL, usPortcontrol_SDA)
+  local tLog = self.tLog
+  local tester = _G.tester
+  local aAttr = tHandle.attr
+
+  -- Setup a basic layout of the buffer:
+  --   * Parameter (fixed size: 64 bytes)
+  --   * Handle (fixed size: I2C_HANDLE_SIZE bytes)
+  --   * RX/TX buffer
+  tHandle.ulHandleAddress = aAttr.ulParameterStartAddress + 64
+  tHandle.ulBufferAddress = aAttr.ulParameterStartAddress + 64 + self.I2C_HANDLE_SIZE
+
+  -- Combine all options.
+  local ucCore0, ucCore1 = self:__uint16_to_bytes(tCoreID)
+  local ucPSCL0, ucPSCL1 = self:__uint16_to_bytes(usPortcontrol_SCL)
+  local ucPSDA0, ucPSDA1 = self:__uint16_to_bytes(usPortcontrol_SDA)
+  local strOptions = string.char(
+    ucCore0, ucCore1,
+    ucMMIO_SCL,
+    ucMMIO_SDA,
+    ucPSCL0, ucPSCL1,
+    ucPSDA0, ucPSDA1
+  )
+
+  local tPlugin = tHandle.plugin
+  if tPlugin==nil then
+    tLog.error('The handle has no "plugin" set.')
+  else
+    -- Run the command.
+    local aParameter = {
+      0xffffffff,    -- verbose
+      self.I2C_CMD_Open,
+      tHandle.ulHandleAddress
+    }
+    tester:mbin_set_parameter(tPlugin, aAttr, aParameter)
+    -- Append the options.
+    tester:stdWrite(tPlugin, aAttr.ulParameterStartAddress+0x18, strOptions)
+
+    ulValue = tester:mbin_execute(tPlugin, aAttr, aParameter)
+    if ulValue~=0 then
+      tLog.error('Failed to open the device.')
+      error('Failed to open the device.')
+    end
+  end
+end
+
 
 
 function I2CNetx:run_sequence(tHandle, strSequence, sizExpectedRxData)

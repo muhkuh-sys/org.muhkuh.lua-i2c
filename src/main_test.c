@@ -298,13 +298,152 @@ static int command_delay(CMD_STATE_T *ptState)
 
 
 
-static int processCommandSequence(unsigned long ulVerbose, I2C_PARAMETER_RUN_SEQUENCE_T *ptParameter, I2C_HANDLE_T *ptHandle)
+typedef struct I2C_INTERFACE_NAME_LOOKUP_STRUCT
+{
+	I2C_SETUP_CORE_T tID;
+	const char *pcName;
+} I2C_INTERFACE_NAME_LOOKUP_T;
+
+static const I2C_INTERFACE_NAME_LOOKUP_T atI2cInterfaceNameLookup[] =
+{
+	{
+		.tID = I2C_SETUP_CORE_RAPI2C0,
+		.pcName = "RAP_I2C0"
+	},
+	{
+		.tID = I2C_SETUP_CORE_RAPI2C1,
+		.pcName = "RAP_I2C1"
+	},
+	{
+		.tID = I2C_SETUP_CORE_RAPI2C2,
+		.pcName = "RAP_I2C2"
+	},
+	{
+		.tID = I2C_SETUP_CORE_RAPI2C3,
+		.pcName = "RAP_I2C3"
+	},
+	{
+		.tID = I2C_SETUP_CORE_RAPI2C4,
+		.pcName = "RAP_I2C4"
+	},
+	{
+		.tID = I2C_SETUP_CORE_RAPI2C5,
+		.pcName = "RAP_I2C5"
+	},
+	{
+		.tID = I2C_SETUP_CORE_I2C0,
+		.pcName = "I2C0"
+	},
+	{
+		.tID = I2C_SETUP_CORE_I2C1,
+		.pcName = "I2C1"
+	},
+	{
+		.tID = I2C_SETUP_CORE_I2C2,
+		.pcName = "I2C2"
+	}
+};
+
+
+static const char *getInterfaceName(I2C_SETUP_CORE_T tCore)
+{
+	const I2C_INTERFACE_NAME_LOOKUP_T *pcCnt;
+	const I2C_INTERFACE_NAME_LOOKUP_T *pcEnd;
+	const char *pcName;
+
+
+	pcName = "Unknown";
+
+	pcCnt = atI2cInterfaceNameLookup;
+	pcEnd = atI2cInterfaceNameLookup + (sizeof(atI2cInterfaceNameLookup)/sizeof(atI2cInterfaceNameLookup[0]));
+	while( pcCnt<pcEnd )
+	{
+		if( pcCnt->tID==tCore )
+		{
+			pcName = pcCnt->pcName;
+			break;
+		}
+		++pcCnt;
+	};
+
+	return pcName;
+}
+
+
+
+static TEST_RESULT_T processCommandOpen(unsigned long ulVerbose, I2C_PARAMETER_OPEN_T *ptParameter)
+{
+	TEST_RESULT_T tResult;
+	int iResult;
+	I2C_SETUP_T tI2CSetup;
+	I2C_SETUP_CORE_T tCore;
+	I2C_HANDLE_T *ptHandle;
+	const char *pcIfName;
+
+
+	/* Check the parameter. */
+	tResult = TEST_RESULT_ERROR;
+	tCore = (I2C_SETUP_CORE_T)(ptParameter->usI2CCore);
+	switch(tCore)
+	{
+	case I2C_SETUP_CORE_RAPI2C0:
+	case I2C_SETUP_CORE_RAPI2C1:
+	case I2C_SETUP_CORE_RAPI2C2:
+	case I2C_SETUP_CORE_RAPI2C3:
+	case I2C_SETUP_CORE_RAPI2C4:
+	case I2C_SETUP_CORE_RAPI2C5:
+	case I2C_SETUP_CORE_I2C0:
+	case I2C_SETUP_CORE_I2C1:
+	case I2C_SETUP_CORE_I2C2:
+		tResult = TEST_RESULT_OK;
+		break;
+	}
+	if( tResult!=TEST_RESULT_OK )
+	{
+		uprintf("Invalid core selected: %d\n", tCore);
+	}
+	else
+	{
+		tI2CSetup.tI2CCore = tCore;
+		tI2CSetup.aucMmioIndex[I2C_SETUP_PIN_INDEX_SCL] = ptParameter->ucMMIOIndexSCL;
+		tI2CSetup.aucMmioIndex[I2C_SETUP_PIN_INDEX_SDA] = ptParameter->ucMMIOIndexSDA;
+		tI2CSetup.ausPortControl[I2C_SETUP_PIN_INDEX_SCL] = ptParameter->usPortcontrolSCL;
+		tI2CSetup.ausPortControl[I2C_SETUP_PIN_INDEX_SDA] = ptParameter->usPortcontrolSDA;
+
+		if( ulVerbose!=0 )
+		{
+			pcIfName = getInterfaceName(tCore);
+			uprintf("Setup interface %s with MMIOs %d/%d and port control 0x%04x/0x%04x.\n",
+			        pcIfName,
+			        tI2CSetup.aucMmioIndex[I2C_SETUP_PIN_INDEX_SCL],
+				tI2CSetup.aucMmioIndex[I2C_SETUP_PIN_INDEX_SDA],
+				tI2CSetup.ausPortControl[I2C_SETUP_PIN_INDEX_SCL],
+				tI2CSetup.ausPortControl[I2C_SETUP_PIN_INDEX_SDA]
+			);
+		}
+
+		ptHandle = (I2C_HANDLE_T*)(ptParameter->ptHandle);
+		iResult = i2c_core_hsoc_v2_init(&tI2CSetup, ptHandle);
+		if( iResult!=0 )
+		{
+			uprintf("Failed to setup the I2C core.\n");
+			tResult = TEST_RESULT_ERROR;
+		}
+	}
+
+	return tResult;
+}
+
+
+
+static int processCommandSequence(unsigned long ulVerbose, I2C_PARAMETER_RUN_SEQUENCE_T *ptParameter)
 {
 	int iResult;
 	CMD_STATE_T tState;
 	unsigned char ucData;
 	I2C_SEQ_COMMAND_T tCmd;
 	unsigned int uiDataSize;
+	I2C_HANDLE_T *ptHandle;
 
 
 	/* An empty command is OK. */
@@ -312,6 +451,9 @@ static int processCommandSequence(unsigned long ulVerbose, I2C_PARAMETER_RUN_SEQ
 
 	/* Get the verbose flag. */
 	tState.ulVerbose = ulVerbose;
+
+	/* Get the handle. */
+	ptHandle = (I2C_HANDLE_T*)(ptParameter->ptHandle);
 
 	/* Loop over all commands. */
 	tState.pucCmdCnt = ptParameter->pucCommand;
@@ -393,8 +535,6 @@ TEST_RESULT_T test(I2C_PARAMETER_T *ptTestParams)
 	TEST_RESULT_T tResult;
 	int iResult;
 	unsigned long ulVerbose;
-	I2C_HANDLE_T tHandle;
-	I2C_SETUP_T tI2CSetup;
 	I2C_CMD_T tCmd;
 
 	systime_init();
@@ -411,59 +551,40 @@ TEST_RESULT_T test(I2C_PARAMETER_T *ptTestParams)
 		uprintf(".   Verbose: 0x%08x\n", ptTestParams->ulVerbose);
 	}
 
-	tResult = TEST_RESULT_OK;
-
-	/* Settings for the RTC clock. */
-	tI2CSetup.tI2CCore = I2C_SETUP_CORE_I2C0;
-	tI2CSetup.aucMmioIndex[0] = 24;    // SCL
-	tI2CSetup.aucMmioIndex[1] = 25;    // SDA
-	tI2CSetup.ausPortControl[0] = PORTCONTROL_CONFIGURATION(REEMUX_0, 0, REEMUX_DRV_04MA, REEMUX_UDC_PULLUP50K);   // SCL
-	tI2CSetup.ausPortControl[1] = PORTCONTROL_CONFIGURATION(REEMUX_0, 0, REEMUX_DRV_04MA, REEMUX_UDC_PULLUP50K);   // SDA
-
-	iResult = i2c_core_hsoc_v2_init(&tI2CSetup, &tHandle);
-	if( iResult!=0 )
+	tCmd = (I2C_CMD_T)(ptTestParams->ulCommand);
+	tResult = TEST_RESULT_ERROR;
+	switch(tCmd)
 	{
-		uprintf("Failed to setup the I2C core.\n");
-		tResult = TEST_RESULT_ERROR;
+	case I2C_CMD_Open:
+	case I2C_CMD_RunSequence:
+	case I2C_CMD_Close:
+		tResult = TEST_RESULT_OK;
+		break;
+	}
+	if( tResult!=TEST_RESULT_OK )
+	{
+		uprintf("Invalid command: 0x%08x\n", tCmd);
 	}
 	else
 	{
-		tCmd = (I2C_CMD_T)(ptTestParams->ulCommand);
-		tResult = TEST_RESULT_ERROR;
 		switch(tCmd)
 		{
 		case I2C_CMD_Open:
-		case I2C_CMD_RunSequence:
-		case I2C_CMD_Close:
-			tResult = TEST_RESULT_OK;
+			tResult = processCommandOpen(ulVerbose, &(ptTestParams->uParameter.tOpen));
 			break;
-		}
-		if( tResult!=TEST_RESULT_OK )
-		{
-			uprintf("Invalid command: 0x%08x\n", tCmd);
-		}
-		else
-		{
-			switch(tCmd)
+
+		case I2C_CMD_RunSequence:
+			iResult = processCommandSequence(ulVerbose, &(ptTestParams->uParameter.tRunSequence));
+			if( iResult!=0 )
 			{
-			case I2C_CMD_Open:
-				uprintf("Not yet.\n");
 				tResult = TEST_RESULT_ERROR;
-				break;
-
-			case I2C_CMD_RunSequence:
-				iResult = processCommandSequence(ulVerbose, &(ptTestParams->uParameter.tRunSequence), &tHandle);
-				if( iResult!=0 )
-				{
-					tResult = TEST_RESULT_ERROR;
-				}
-				break;
-
-			case I2C_CMD_Close:
-				uprintf("Not yet.\n");
-				tResult = TEST_RESULT_ERROR;
-				break;
 			}
+			break;
+
+		case I2C_CMD_Close:
+			uprintf("Not yet.\n");
+			tResult = TEST_RESULT_ERROR;
+			break;
 		}
 	}
 
