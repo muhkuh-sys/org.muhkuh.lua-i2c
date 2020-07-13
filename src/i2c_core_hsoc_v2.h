@@ -39,7 +39,7 @@ typedef struct I2C_SETUP_STRUCT
 } I2C_SETUP_T;
 
 
-const I2C_FUNCTIONS_T *i2c_core_hsoc_v2_init(I2C_SETUP_T *ptI2CSetup);
+int i2c_core_hsoc_v2_init(I2C_SETUP_T *ptI2CSetup, I2C_HANDLE_T *ptHandle);
 
 #endif  /* __I2C_CORE_HSOC_V2_H__ */
 

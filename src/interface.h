@@ -47,6 +47,7 @@ typedef struct I2C_PARAMETER_OPEN_STRUCT
 
 typedef struct I2C_PARAMETER_RUN_SEQUENCE_STRUCT
 {
+	uint32_t ptHandle;
 	const uint8_t *pucCommand;
 	uint32_t sizCommand;
 	uint8_t *pucReceivedData;

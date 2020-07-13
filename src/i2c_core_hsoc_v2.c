@@ -1,5 +1,7 @@
 #include "i2c_core_hsoc_v2.h"
 
+#include <string.h>
+
 #include "netx_io_areas.h"
 #include "portcontrol.h"
 #include "systime.h"
@@ -33,12 +35,6 @@ typedef enum
 /*-----------------------------------*/
 
 
-HOSTADEF(I2C) * ptI2cUnit;
-
-
-/*-----------------------------------*/
-
-
 static const unsigned char aucMmioFunctions_netx4000_I2C0[2] =
 {
 	HOSTMMIO(I2C0_SCL),
@@ -63,14 +59,16 @@ static const unsigned char aucMmioFunctions_netx4000_I2C2[2] =
 /*-----------------------------------*/
 
 
-static int i2c_wait_for_command_done(void)
+static int i2c_wait_for_command_done(const I2C_HANDLE_T *ptHandle)
 {
 	unsigned long ulValue;
 	TIMER_HANDLE_T tTimerHandle;
 	int iResult;
+	HOSTADEF(I2C) * ptI2cUnit;
 
 
 	iResult = 0;
+	ptI2cUnit = ptHandle->ptI2cUnit;
 
 	/* Wait until the command is finished. */
 	systime_handle_start_ms(&tTimerHandle, 1000);
@@ -92,7 +90,7 @@ static int i2c_wait_for_command_done(void)
 
 
 
-static int i2c_core_hsoc_v2_send(int iCond, unsigned int uiAckPoll, unsigned int uiDataLength, const unsigned char *pucData)
+static int i2c_core_hsoc_v2_send(const I2C_HANDLE_T *ptHandle, int iCond, unsigned int uiAckPoll, unsigned int uiDataLength, const unsigned char *pucData)
 {
 	unsigned long ulAddress;
 	unsigned long ulValue;
@@ -100,9 +98,11 @@ static int i2c_core_hsoc_v2_send(int iCond, unsigned int uiAckPoll, unsigned int
 	const unsigned char *pucBufferEnd;
 	unsigned int uiChunkTransaction;
 	int iResult;
+	HOSTADEF(I2C) * ptI2cUnit;
 
 
 	iResult = 0;
+	ptI2cUnit = ptHandle->ptI2cUnit;
 
 	/* Limit ACK poll to valid range. */
 	if( uiAckPoll>(HOSTMSK(i2c_cmd_acpollmax)>>HOSTSRT(i2c_cmd_acpollmax)) )
@@ -137,7 +137,7 @@ static int i2c_core_hsoc_v2_send(int iCond, unsigned int uiAckPoll, unsigned int
 		ulValue |= uiAckPoll << HOSTSRT(i2c_cmd_acpollmax);
 		ptI2cUnit->ulI2c_cmd = ulValue;
 
-		iResult = i2c_wait_for_command_done();
+		iResult = i2c_wait_for_command_done(ptHandle);
 		if( iResult!=0 )
 		{
 			uprintf("Failed to execute the start command.\n");
@@ -199,7 +199,7 @@ static int i2c_core_hsoc_v2_send(int iCond, unsigned int uiAckPoll, unsigned int
 
 		uiDataLength -= uiChunkTransaction;
 
-		iResult = i2c_wait_for_command_done();
+		iResult = i2c_wait_for_command_done(ptHandle);
 		if( iResult!=0 )
 		{
 			uprintf("Failed to execute the start command.\n");
@@ -228,7 +228,7 @@ static int i2c_core_hsoc_v2_send(int iCond, unsigned int uiAckPoll, unsigned int
 		ulValue |= 0 << HOSTSRT(i2c_cmd_acpollmax);
 		ptI2cUnit->ulI2c_cmd = ulValue;
 
-		iResult = i2c_wait_for_command_done();
+		iResult = i2c_wait_for_command_done(ptHandle);
 		if( iResult!=0 )
 		{
 			uprintf("Failed to execute the start command.\n");
@@ -239,16 +239,18 @@ static int i2c_core_hsoc_v2_send(int iCond, unsigned int uiAckPoll, unsigned int
 }
 
 
-static int i2c_core_hsoc_v2_recv(int iCond, unsigned int uiAckPoll, unsigned int uiDataLength, unsigned char *pucData)
+static int i2c_core_hsoc_v2_recv(const I2C_HANDLE_T *ptHandle, int iCond, unsigned int uiAckPoll, unsigned int uiDataLength, unsigned char *pucData)
 {
 	int iResult;
 	unsigned long ulAddress;
 	unsigned long ulValue;
 	unsigned long ulChunkTransaction;
 	unsigned long ulChunkFifo;
+	HOSTADEF(I2C) * ptI2cUnit;
 
 
 	iResult = 0;
+	ptI2cUnit = ptHandle->ptI2cUnit;
 
 	/* Limit ACK poll to valid range. */
 	if( uiAckPoll>(HOSTMSK(i2c_cmd_acpollmax)>>HOSTSRT(i2c_cmd_acpollmax)) )
@@ -283,7 +285,7 @@ static int i2c_core_hsoc_v2_recv(int iCond, unsigned int uiAckPoll, unsigned int
 			ulValue |= uiAckPoll << HOSTSRT(i2c_cmd_acpollmax);
 			ptI2cUnit->ulI2c_cmd = ulValue;
 
-			iResult = i2c_wait_for_command_done();
+			iResult = i2c_wait_for_command_done(ptHandle);
 			if( iResult!=0 )
 			{
 				uprintf("Failed to execute the start command.\n");
@@ -360,7 +362,7 @@ static int i2c_core_hsoc_v2_recv(int iCond, unsigned int uiAckPoll, unsigned int
 					}
 				} while( ulChunkTransaction!=0 );
 
-				iResult = i2c_wait_for_command_done();
+				iResult = i2c_wait_for_command_done(ptHandle);
 				if( iResult!=0 )
 				{
 					uprintf("Failed to execute the start command.\n");
@@ -379,7 +381,7 @@ static int i2c_core_hsoc_v2_recv(int iCond, unsigned int uiAckPoll, unsigned int
 			ulValue |= 0 << HOSTSRT(i2c_cmd_acpollmax);
 			ptI2cUnit->ulI2c_cmd = ulValue;
 
-			iResult = i2c_wait_for_command_done();
+			iResult = i2c_wait_for_command_done(ptHandle);
 			if( iResult!=0 )
 			{
 				uprintf("Failed to execute the start command.\n");
@@ -392,11 +394,14 @@ static int i2c_core_hsoc_v2_recv(int iCond, unsigned int uiAckPoll, unsigned int
 
 
 
-static int i2c_core_hsoc_v2_set_device_specific_speed(unsigned long ulDeviceSpecificValue)
+static int i2c_core_hsoc_v2_set_device_specific_speed(const I2C_HANDLE_T *ptHandle, unsigned long ulDeviceSpecificValue)
 {
 	int iResult;
 	unsigned long ulValue;
+	HOSTADEF(I2C) * ptI2cUnit;
 
+
+	ptI2cUnit = ptHandle->ptI2cUnit;
 
 	if( ulDeviceSpecificValue>(HOSTMSK(i2c_mcr_mode)>>HOSTSRT(i2c_mcr_mode)) )
 	{
@@ -449,7 +454,7 @@ static const I2C_FUNCTIONS_T i2c_core_functions =
 };
 
 
-const I2C_FUNCTIONS_T *i2c_core_hsoc_v2_init(I2C_SETUP_T *ptI2CSetup)
+int i2c_core_hsoc_v2_init(I2C_SETUP_T *ptI2CSetup, I2C_HANDLE_T *ptHandle)
 {
 	HOSTDEF(ptRAPI2C0Area);
 	HOSTDEF(ptRAPI2C1Area);
@@ -461,68 +466,65 @@ const I2C_FUNCTIONS_T *i2c_core_hsoc_v2_init(I2C_SETUP_T *ptI2CSetup)
 	HOSTDEF(ptI2c1Area);
 	HOSTDEF(ptI2c2Area);
 	unsigned long ulValue;
-	HOSTADEF(I2C) * ptUnit;
+	HOSTADEF(I2C) * ptI2cUnit;
 	const unsigned char *pucMmioFunctions;
-	const I2C_FUNCTIONS_T *ptFn;
+	int iResult;
 
 
-	ptFn = NULL;
+	iResult = -1;
 
-	ptUnit = NULL;
+	ptI2cUnit = NULL;
 	pucMmioFunctions = NULL;
 	switch(ptI2CSetup->tI2CCore)
 	{
 	case I2C_SETUP_CORE_RAPI2C0:
-		ptUnit = ptRAPI2C0Area;
+		ptI2cUnit = ptRAPI2C0Area;
 		pucMmioFunctions = NULL;
 		break;
 
 	case I2C_SETUP_CORE_RAPI2C1:
-		ptUnit = ptRAPI2C1Area;
+		ptI2cUnit = ptRAPI2C1Area;
 		pucMmioFunctions = NULL;
 		break;
 
 	case I2C_SETUP_CORE_RAPI2C2:
-		ptUnit = ptRAPI2C2Area;
+		ptI2cUnit = ptRAPI2C2Area;
 		pucMmioFunctions = NULL;
 		break;
 
 	case I2C_SETUP_CORE_RAPI2C3:
-		ptUnit = ptRAPI2C3Area;
+		ptI2cUnit = ptRAPI2C3Area;
 		pucMmioFunctions = NULL;
 		break;
 
 	case I2C_SETUP_CORE_RAPI2C4:
-		ptUnit = ptRAPI2C4Area;
+		ptI2cUnit = ptRAPI2C4Area;
 		pucMmioFunctions = NULL;
 		break;
 
 	case I2C_SETUP_CORE_RAPI2C5:
-		ptUnit = ptRAPI2C5Area;
+		ptI2cUnit = ptRAPI2C5Area;
 		pucMmioFunctions = NULL;
 		break;
 
 	case I2C_SETUP_CORE_I2C0:
-		ptUnit = ptI2c0Area;
+		ptI2cUnit = ptI2c0Area;
 		pucMmioFunctions = aucMmioFunctions_netx4000_I2C0;
 		break;
 
 	case I2C_SETUP_CORE_I2C1:
-		ptUnit = ptI2c1Area;
+		ptI2cUnit = ptI2c1Area;
 		pucMmioFunctions = aucMmioFunctions_netx4000_I2C1;
 		break;
 
 	case I2C_SETUP_CORE_I2C2:
-		ptUnit = ptI2c2Area;
+		ptI2cUnit = ptI2c2Area;
 		pucMmioFunctions = aucMmioFunctions_netx4000_I2C2;
 		break;
 	}
 
-	if( ptUnit!=NULL )
+	if( ptI2cUnit!=NULL )
 	{
-		/* TODO: Do not use a global here. Provide storage space to this function. */
-		ptI2cUnit = ptUnit;
-
 		/* Configure the port control unit. */
 		portcontrol_apply_mmio(ptI2CSetup->aucMmioIndex, ptI2CSetup->ausPortControl, 2);
 
@@ -572,11 +574,14 @@ const I2C_FUNCTIONS_T *i2c_core_hsoc_v2_init(I2C_SETUP_T *ptI2CSetup)
 		ulValue |= HOSTMSK(i2c_mcr_en_i2c);
 		ptI2cUnit->ulI2c_mcr = ulValue;
 
-		ptFn = &i2c_core_functions;
+		memcpy(&(ptHandle->tI2CFn), &i2c_core_functions, sizeof(I2C_FUNCTIONS_T));
+		ptHandle->ptI2cUnit = ptI2cUnit;
+
+		iResult = 0;
 	}
 
 	/* return the pointer to the functions */
-	return ptFn;
+	return iResult;
 }
 
 

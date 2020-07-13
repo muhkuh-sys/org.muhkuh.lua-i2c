@@ -74,7 +74,7 @@ typedef struct CMD_STATE_STRUCT
 
 
 
-static int command_read(CMD_STATE_T *ptState, const I2C_FUNCTIONS_T *ptI2CFn)
+static int command_read(CMD_STATE_T *ptState, const I2C_HANDLE_T *ptHandle)
 {
 	int iResult;
 	const I2C_SEQ_COMMAND_RW_T *ptCmd;
@@ -141,7 +141,7 @@ static int command_read(CMD_STATE_T *ptState, const I2C_FUNCTIONS_T *ptI2CFn)
 			}
 
 			/* Run the command. */
-			iResult = ptI2CFn->fnRecv(iConditions, uiAckPoll, ulDataSize, ptState->pucRecCnt);
+			iResult = ptHandle->tI2CFn.fnRecv(ptHandle, iConditions, uiAckPoll, ulDataSize, ptState->pucRecCnt);
 			if( iResult!=0 )
 			{
 				if( ptState->ulVerbose!=0U )
@@ -170,7 +170,7 @@ static int command_read(CMD_STATE_T *ptState, const I2C_FUNCTIONS_T *ptI2CFn)
 
 
 
-static int command_write(CMD_STATE_T *ptState, const I2C_FUNCTIONS_T *ptI2CFn)
+static int command_write(CMD_STATE_T *ptState, const I2C_HANDLE_T *ptHandle)
 {
 	int iResult;
 	const I2C_SEQ_COMMAND_RW_T *ptCmd;
@@ -238,7 +238,7 @@ static int command_write(CMD_STATE_T *ptState, const I2C_FUNCTIONS_T *ptI2CFn)
 			}
 
 			/* Run the command. */
-			iResult = ptI2CFn->fnSend(iConditions, uiAckPoll, ulDataSize, ptState->pucCmdCnt + sizeof(I2C_SEQ_COMMAND_RW_T));
+			iResult = ptHandle->tI2CFn.fnSend(ptHandle, iConditions, uiAckPoll, ulDataSize, ptState->pucCmdCnt + sizeof(I2C_SEQ_COMMAND_RW_T));
 			if( iResult!=0 )
 			{
 				if( ptState->ulVerbose!=0U )
@@ -298,7 +298,7 @@ static int command_delay(CMD_STATE_T *ptState)
 
 
 
-static int processCommandSequence(unsigned long ulVerbose, I2C_PARAMETER_RUN_SEQUENCE_T *ptTestParams, const I2C_FUNCTIONS_T *ptI2CFn)
+static int processCommandSequence(unsigned long ulVerbose, I2C_PARAMETER_RUN_SEQUENCE_T *ptParameter, I2C_HANDLE_T *ptHandle)
 {
 	int iResult;
 	CMD_STATE_T tState;
@@ -314,10 +314,10 @@ static int processCommandSequence(unsigned long ulVerbose, I2C_PARAMETER_RUN_SEQ
 	tState.ulVerbose = ulVerbose;
 
 	/* Loop over all commands. */
-	tState.pucCmdCnt = ptTestParams->pucCommand;
-	tState.pucCmdEnd = tState.pucCmdCnt + ptTestParams->sizCommand;
-	tState.pucRecCnt = ptTestParams->pucReceivedData;
-	tState.pucRecEnd = tState.pucRecCnt + ptTestParams->sizReceivedDataMax;
+	tState.pucCmdCnt = ptParameter->pucCommand;
+	tState.pucCmdEnd = tState.pucCmdCnt + ptParameter->sizCommand;
+	tState.pucRecCnt = ptParameter->pucReceivedData;
+	tState.pucRecEnd = tState.pucRecCnt + ptParameter->sizReceivedDataMax;
 	if( tState.ulVerbose!=0U )
 	{
 		uprintf("Running command [0x%08x, 0x%08x[.\n", (unsigned long)tState.pucCmdCnt, (unsigned long)tState.pucCmdEnd);
@@ -347,11 +347,11 @@ static int processCommandSequence(unsigned long ulVerbose, I2C_PARAMETER_RUN_SEQ
 			switch( tCmd )
 			{
 			case I2C_SEQ_COMMAND_Read:
-				iResult = command_read(&tState, ptI2CFn);
+				iResult = command_read(&tState, ptHandle);
 				break;
 
 			case I2C_SEQ_COMMAND_Write:
-				iResult = command_write(&tState, ptI2CFn);
+				iResult = command_write(&tState, ptHandle);
 				break;
 
 			case I2C_SEQ_COMMAND_Delay:
@@ -372,10 +372,10 @@ static int processCommandSequence(unsigned long ulVerbose, I2C_PARAMETER_RUN_SEQ
 	if( iResult==0 )
 	{
 		/* Set the size of the result data. */
-		uiDataSize = (unsigned int)(tState.pucRecCnt-ptTestParams->pucReceivedData);
-		if( uiDataSize<=ptTestParams->sizReceivedDataMax )
+		uiDataSize = (unsigned int)(tState.pucRecCnt-ptParameter->pucReceivedData);
+		if( uiDataSize<=ptParameter->sizReceivedDataMax )
 		{
-			ptTestParams->sizReceivedData = uiDataSize;
+			ptParameter->sizReceivedData = uiDataSize;
 		}
 		else
 		{
@@ -393,7 +393,7 @@ TEST_RESULT_T test(I2C_PARAMETER_T *ptTestParams)
 	TEST_RESULT_T tResult;
 	int iResult;
 	unsigned long ulVerbose;
-	const I2C_FUNCTIONS_T *ptI2CFn;
+	I2C_HANDLE_T tHandle;
 	I2C_SETUP_T tI2CSetup;
 	I2C_CMD_T tCmd;
 
@@ -420,8 +420,8 @@ TEST_RESULT_T test(I2C_PARAMETER_T *ptTestParams)
 	tI2CSetup.ausPortControl[0] = PORTCONTROL_CONFIGURATION(REEMUX_0, 0, REEMUX_DRV_04MA, REEMUX_UDC_PULLUP50K);   // SCL
 	tI2CSetup.ausPortControl[1] = PORTCONTROL_CONFIGURATION(REEMUX_0, 0, REEMUX_DRV_04MA, REEMUX_UDC_PULLUP50K);   // SDA
 
-	ptI2CFn = i2c_core_hsoc_v2_init(&tI2CSetup);
-	if( ptI2CFn==NULL )
+	iResult = i2c_core_hsoc_v2_init(&tI2CSetup, &tHandle);
+	if( iResult!=0 )
 	{
 		uprintf("Failed to setup the I2C core.\n");
 		tResult = TEST_RESULT_ERROR;
@@ -452,7 +452,7 @@ TEST_RESULT_T test(I2C_PARAMETER_T *ptTestParams)
 				break;
 
 			case I2C_CMD_RunSequence:
-				iResult = processCommandSequence(ulVerbose, &(ptTestParams->uParameter.tRunSequence), ptI2CFn);
+				iResult = processCommandSequence(ulVerbose, &(ptTestParams->uParameter.tRunSequence), &tHandle);
 				if( iResult!=0 )
 				{
 					tResult = TEST_RESULT_ERROR;

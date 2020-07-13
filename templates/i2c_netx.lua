@@ -16,6 +16,8 @@ function I2CNetx:_init(tLog)
   self.I2C_SEQ_CONDITION_Stop = ${I2C_SEQ_CONDITION_Stop}
   self.I2C_SEQ_CONDITION_Continue = ${I2C_SEQ_CONDITION_Continue}
 
+  self.I2C_HANDLE_SIZE = ${SIZEOF_I2C_HANDLE_STRUCT}
+
   self.romloader = require 'romloader'
   self.lpeg = require 'lpeg'
   self.pl = require'pl.import_into'()
@@ -130,10 +132,19 @@ function I2CNetx:initialize(tPlugin)
   tester:mbin_debug(aAttr)
   tester:mbin_write(tPlugin, aAttr)
 
-  return {
+  local tHandle = {
     plugin = tPlugin,
     attr = aAttr
   }
+
+  -- Setup a basic layout of the buffer:
+  --   * Parameter (fixed size: 64 bytes)
+  --   * Handle (fixed size: I2C_HANDLE_SIZE bytes)
+  --   * RX/TX buffer
+  tHandle.ulHandleAddress = aAttr.ulParameterStartAddress + 64
+  tHandle.ulBufferAddress = aAttr.ulParameterStartAddress + 64 + self.I2C_HANDLE_SIZE
+
+  return tHandle
 end
 
 
@@ -351,8 +362,8 @@ function I2CNetx:run_sequence(tHandle, strSequence, sizExpectedRxData)
   local aAttr = tHandle.attr
 
   local sizTxBuffer = string.len(strSequence)
-  local pucTxBuffer = aAttr.ulParameterStartAddress + 64
-  local pucRxBuffer = pucTxBuffer + sizTxBuffer
+  local pucTxBuffer = tHandle.ulBufferAddress
+  local pucRxBuffer = tHandle.ulBufferAddress + sizTxBuffer
 
   local tPlugin = tHandle.plugin
   if tPlugin==nil then
@@ -365,6 +376,7 @@ function I2CNetx:run_sequence(tHandle, strSequence, sizExpectedRxData)
     local aParameter = {
       0xffffffff,    -- verbose
       self.I2C_CMD_RunSequence,
+      tHandle.ulHandleAddress,
       pucTxBuffer,
       sizTxBuffer,
       pucRxBuffer,
