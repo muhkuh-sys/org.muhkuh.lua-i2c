@@ -42,6 +42,8 @@ end
 
 
 function I2CNetx:__create_i2c_macro_grammar()
+  local lpeg = self.lpeg
+
   local Space = lpeg.V('Space')
   local SinglequotedString = lpeg.V('SinglequotedString')
   local DoublequotedString = lpeg.V('DoublequotedString')
@@ -214,6 +216,7 @@ end
 
 
 function I2CNetx:parseI2cMacro(strMacro)
+  local lpeg = self.lpeg
   local tLog = self.tLog
   local pl = self.pl
 
