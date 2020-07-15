@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-#-------------------------------------------------------------------------#
+# ----------------------------------------------------------------------- #
 #   Copyright (C) 2018 by Christoph Thelen                                #
 #   doc_bacardi@users.sourceforge.net                                     #
 #                                                                         #
@@ -17,12 +17,12 @@
 #   along with this program; if not, write to the                         #
 #   Free Software Foundation, Inc.,                                       #
 #   59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.             #
-#-------------------------------------------------------------------------#
+# ----------------------------------------------------------------------- #
 
 import os.path
 
 
-#----------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
 #
 # Set up the Muhkuh Build System.
 #
@@ -30,7 +30,7 @@ SConscript('mbs/SConscript')
 Import('atEnv')
 
 
-#----------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
 #
 # Create the compiler environments.
 #
@@ -51,7 +51,7 @@ env_cortexR7.CreateCompilerEnv('NETX4000', ['arch=armv7', 'thumb'], ['arch=armv7
 #env_cortexM4.CreateCompilerEnv('NETX90', ['arch=armv7', 'thumb'], ['arch=armv7e-m', 'thumb'])
 
 
-#----------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
 #
 # Build the platform library.
 #
@@ -168,5 +168,5 @@ atFiles = {
     'targets/testbench/netx/i2c_netx4000.bin':    I2C_NETX4000,
     'targets/testbench/lua/i2c_netx.lua':         LUA_MODULE
 }
-for tDst, tSrc in atFiles.iteritems():
+for tDst, tSrc in atFiles.items():
     Command(tDst, tSrc, Copy("$TARGET", "$SOURCE"))
