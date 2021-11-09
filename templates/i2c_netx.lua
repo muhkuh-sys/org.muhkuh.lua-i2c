@@ -29,7 +29,7 @@ function I2CNetx:_init(tLog)
   self.I2C_HANDLE_SIZE = ${SIZEOF_I2C_HANDLE_STRUCT}
 
   self.romloader = require 'romloader'
-  self.lpeg = require 'lpeg'
+  self.lpeg = require 'lpeglabel'
   self.pl = require'pl.import_into'()
 
   self.tLog = tLog
